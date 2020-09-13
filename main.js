@@ -1,6 +1,6 @@
 const Discord = require("discord.js");
 const ytdl = require("ytdl-core");
-var querystring = require('querystring');
+const querystring = require('querystring');
 const fetch = require("node-fetch");
 const btoa = require("btoa");
 const client = new Discord.Client();
@@ -151,14 +151,56 @@ client.on("message", async message => {
         queue: []
       };
     }
-
+    
+    let playlist = false
+    let spotify_uri_regex = /^spotify:playlist:[\w\d]*$/
+    let spotify_url_regex = /^https:\/\/open.spotify.com\/playlist\/[\w\d]*\?si=[\w\d]*/
+    let id = "";
+    
+    if (args[0].match(spotify_uri_regex)) {
+      playlist = true;
+      id = args[0].substring(args[0].lastIndexOf(":") + 1);
+    } else if (args[0].match(spotify_url_regex)) {
+      playlist = true;
+      let match = args[0].match(/\/[\w\d]*\?/)[0];
+      id = match.substring(1, match.length);
+    }
+    
     let server = servers[message.guild.id];
-    let query = args.join(" ");
-    server.queue.push(await searchYoutube(query));
+    let first = true;
+    
+    if (playlist) {
+      server.queue = [];
+      let songs = await fetchPlaylist(id);
+      for (let song of songs) {
+        song = song.replace("\'", "")
+        let youtube_link = await searchYoutube(song);
+        let rows = await checkDatabase(song);
+        if (rows.length === 0) {
+          let query = "INSERT INTO song(spotify_query, youtube_link) VALUES(:song, :link)"
+          await db.query(sql(query)({
+            song: song,
+            link: youtube_link
+          }));
+        }
+        server.queue.push(youtube_link);
+        console.log("Song: " + song + " " + youtube_link);
 
-    if(!message.guild.voice) message.member.voice.channel.join().then(function(connection) {
-      play(connection, message);
-    })
+        if (!message.guild.voice && first) message.member.voice.channel.join().then(function(connection) {
+          play(connection, message);
+        })
+        first = false;
+      }
+    } else {
+      let query = args.join(" ");
+      let youtube_link = await searchYoutube(query);
+      server.queue.push(youtube_link);
+      console.log("Song: " + query + " " + youtube_link);
+
+      if(!message.guild.voice) message.member.voice.channel.join().then(function(connection) {
+        play(connection, message);
+      })
+    }  
   }
 
   if (command === "skip") {
@@ -198,52 +240,14 @@ client.on("message", async message => {
     }
   }
 
-  if (command === "playlist") {
-    if (!args[0]) {
-        message.channel.send("You need to provide a link");
-        return;
-      }
 
-    if (!message.member.voice.channel) {
-      message.channel.send("You must be in a channel to play the bot!");
-      return;
-    }
-
-    if (!servers[message.guild.id]) {
-      servers[message.guild.id] = {
-        queue: []
-      };
-    }
-
-    let server = servers[message.guild.id];
-    server.queue = [];
-    let id = args[0].substring(args[0].lastIndexOf(":") + 1);
-    let songs = await fetchPlaylist(id);
-    for (let song of songs) {
-      let youtube_link = await searchYoutube(song);
-      let rows = await checkDatabase(song);
-      if (rows.length === 0) {
-        let query = "INSERT INTO song(spotify_query, youtube_link) VALUES(:song, :link)"
-        await db.query(sql(query)({
-          song: song,
-          link: youtube_link
-        }));
-      }
-      server.queue.push(youtube_link);
-      
-      if (!message.guild.voice) message.member.voice.channel.join().then(function(connection) {
-        play(connection, message);
-      })
-    }
-  }
-
-  if (command === "commands") {
+  if (command === "commands" || command === "help") {
     messages = [
       "!play and !skip - works like rythm",
       "!pause - ...pauses",
       "!stop - clears queue and makes bot leave",
       "!playlist {spotify uri} - plays spotify playlist (e.g. !playlist spotify:playlist:37i9dQZF1DX6drTZKzZwSo)",
-      "Right now it can only play about 300 songs per day... keep that in mind"
+      "Right now it can only play about 500 songs per day... keep that in mind"
     ];
     for (let text of messages) {
       message.channel.send(text);
