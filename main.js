@@ -20,7 +20,7 @@ const SPOTIFY_CLIENT_SECRET = SPOTIFY_FILE[1];
 
 const SPOTIFY_REDIRECT_URI = "https://www.spotify.com/us/";
 const SPOTIFY_SCOPES = "user-read-private user-read-email user-read-playback-state"
-const prefix = "!";
+const prefix = "!!";
 
 let servers = {}
 
