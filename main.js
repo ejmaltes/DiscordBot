@@ -135,6 +135,7 @@ client.on("message", async message => {
       let server = servers[message.guild.id];
       if (server && server.dispatcher && server.dispatcher.paused) {
         server.dispatcher.resume();
+        return;
       } else {
         message.channel.send("You need to provide a link");
         return;
