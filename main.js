@@ -186,7 +186,7 @@ client.on("message", async message => {
         server.queue.push(youtube_link);
         console.log("Song: " + song + " " + youtube_link);
 
-        if (!message.guild.voice && first) message.member.voice.channel.join().then(function(connection) {
+        if ((!message.guild.voice || !message.guild.voice.connection) && first) message.member.voice.channel.join().then(function(connection) {
           play(connection, message);
         })
         first = false;
@@ -197,7 +197,7 @@ client.on("message", async message => {
       server.queue.push(youtube_link);
       console.log("Song: " + query + " " + youtube_link);
 
-      if(!message.guild.voice) message.member.voice.channel.join().then(function(connection) {
+      if(!message.guild.voice || !message.guild.voice.connection) message.member.voice.channel.join().then(function(connection) {
         play(connection, message);
       })
     }  
